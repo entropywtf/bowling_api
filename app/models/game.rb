@@ -1,7 +1,7 @@
 class Game < ApplicationRecord
   has_many :frames
 
-  # XXX move Frame related code to Frame class
+  # XXX move maximum Frame related code to Frame class
   def update_score(score)
     check_score(score)
     raise ArgumentError, 'Game is over' if self.is_over
@@ -37,35 +37,13 @@ class Game < ApplicationRecord
     end
   end
 
-  def handle_spare(last_frame)
-    return unless last_frame.spare
-    apply_extra_score(last_frame) if last_frame.extra_turns_applied.to_i != 1
-  end
-
-  def handle_strike(last_frame)
-    # extra_turns_applied field is used to track the state
-    # of frame where score should be adjusted by the next
-    # turns. It should be 1 in case of spare, 2 - in case of strike
-    if last_frame.strike && last_frame.extra_turns_applied != 2
-      last_frame.score += @score
-      already_applied = last_frame.extra_turns_applied.to_i
-      last_frame.extra_turns_applied = already_applied + 1
-      last_frame.save
-    end
-    incomplete_strike_frame = self.frames.where(:strike => true,
-      :extra_turns_applied => 1).first
-    if incomplete_strike_frame && incomplete_strike_frame != last_frame
-      apply_extra_score(incomplete_strike_frame)
-    end
-  end
-
   # This is a Factory method to create a frame and adjust scores
   # of the previous incomplete in terms of scoring frames
   def create_frame(last_frame=nil)
     number = 1
     if last_frame
-      handle_spare(last_frame)
-      handle_strike(last_frame)
+      last_frame.handle_spare(@score)
+      last_frame.handle_strike(@score)
       number += last_frame.number
     end
     f = Frame.new(:game_id => self.id, :score => @score, :number => number)
@@ -76,19 +54,12 @@ class Game < ApplicationRecord
     f.save
   end
 
-  def apply_extra_score(frame)
-    frame.score += @score
-    already_applied = frame.extra_turns_applied.to_i
-    frame.extra_turns_applied = already_applied + 1
-    frame.save
-  end
-
   # Updates the frame in case of second turn inside one frame
   # or in case of additional throws after the spare or strike in the
   # last frame
   def update_frame(last_frame)
     score_before_handle_strike = last_frame.score
-    handle_strike(last_frame)
+    last_frame.handle_strike(@score)
     if score_before_handle_strike == last_frame.score
       if !last_frame.spare && !last_frame.strike && (last_frame.score + @score) > 10
         raise ArgumentError, 'Impossible quantity of knocked down pins in '+
