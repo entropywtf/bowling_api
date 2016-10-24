@@ -2,11 +2,9 @@ class Game < ApplicationRecord
   has_many :frames
 
   def update_score(score)
-    raise ArgumentError, 'Score is not an integer' if !score.is_a?(Integer)
-    raise ArgumentError, 'Score cannot be more than 10' if score > 10
-    #XXX Refactor me >_<
-    last_frame = self.frames.order(:order).last
+    check_score(score)
     return if self.is_over
+    last_frame = self.frames.order(:order).last
     @score = score
     if last_frame.nil?
       create_frame
@@ -26,6 +24,11 @@ class Game < ApplicationRecord
   end
 
   private
+
+  def check_score(score)
+    raise ArgumentError, 'Score is not an integer' if !score.is_a?(Integer)
+    raise ArgumentError, 'Number of knocked down pins more than 10' if score > 10
+  end
 
   def handle_spare(last_frame)
     return unless last_frame.spare
@@ -69,6 +72,12 @@ class Game < ApplicationRecord
     score_before_handle_strike = last_frame.score
     handle_strike(last_frame)
     if score_before_handle_strike == last_frame.score
+      if !last_frame.spare && !last_frame.strike &&
+        (last_frame.score + @score) > 10
+
+        raise ArgumentError, 'Impossible quantity of knocked down pins in '+
+          "one frame"
+      end
       last_frame.score += @score
     end
     last_frame.spare = (last_frame.score == 10 && !last_frame.strike)
