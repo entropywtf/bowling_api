@@ -10,7 +10,7 @@ class GamesController < ApplicationController
     if params[:submit_score]
       submit_score
     else
-      render json: @game
+      render json: @game, include: ['frames']
     end
   end
 
@@ -27,12 +27,7 @@ class GamesController < ApplicationController
   end
 
   def submit_score
-    if @game.is_over
-      @game.errors.add(:is_over, "Game is over. No more score can be submitted")
-      render_error(@game, 304) and return
-    else
-      @game.update_score(params[:submit_score].to_i)
-      render json: @game
-    end
+    @game.update_score(params[:submit_score].to_i)
+    render json: @game, include: ['frames']
   end
 end

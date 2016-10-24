@@ -7,6 +7,9 @@ class GamesControllerTest < ActionController::TestCase
       post :create
     end
     assert_response :success
+    jdata = JSON.parse response.body
+    assert_equal 0, jdata['data']['attributes']['total-score']
+    assert_equal nil, jdata['data']['attributes']['is-over']
   end
 
   test "Should submit score" do
@@ -18,11 +21,10 @@ class GamesControllerTest < ActionController::TestCase
     get :score, params: { id: 1, submit_score: 5 }
     assert_response :success
 
-    game.reload
-    frame.reload
-    new_score = old_score + 5
-    assert_equal new_score, frame.score
-    assert_equal new_score, game.total_score
+    jdata = JSON.parse response.body
+    assert_equal 10, jdata['data']['attributes']['total-score']
+    assert_equal false, jdata['data']['attributes']['is-over']
+    assert_equal true, jdata['included'].first['attributes']['spare']
   end
 
   test "Should render not found for non-existing game" do
@@ -34,12 +36,18 @@ class GamesControllerTest < ActionController::TestCase
     game = Game.find 1
     game.is_over = true
     game.save!
-    get :score, params: { id: 1, submit_score: 5 }
-    assert_response :not_modified
+    assert_raise(ArgumentError) do
+      get :score, params: { id: 1, submit_score: 5 }
+    end
   end
 
   test "Should show score" do
     get :score, params: { id: 1 }
     assert_response :success
+    jdata = JSON.parse response.body
+    assert_equal 5, jdata['data']['attributes']['total-score']
+    assert_equal nil, jdata['data']['attributes']['is-over']
+    assert_equal nil, jdata['included'].first['attributes']['spare']
+    assert_equal 1, jdata['included'].first['attributes']['number']
   end
 end

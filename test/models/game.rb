@@ -12,6 +12,7 @@ class GameTest < ActiveSupport::TestCase
         @game.update_score(s)
       end
     end
+    assert @game.is_over
     assert_equal 50, @game.total_score
   end
 
@@ -23,6 +24,7 @@ class GameTest < ActiveSupport::TestCase
     end
     #submit additional throw for spare in 10th frame
     @game.update_score(5)
+    assert @game.is_over
     assert_equal 123, @game.total_score
   end
 
@@ -30,11 +32,13 @@ class GameTest < ActiveSupport::TestCase
     scores = []
     # 10 usual frame turns + 2 throws for the 10th-frame-strike
     12.times { @game.update_score(10) }
+    assert @game.is_over
     assert_equal 300, @game.total_score
   end
 
   test "Should submit all-empty looser's scores" do
-    10.times { @game.update_score(0) }
+    20.times { @game.update_score(0) }
+    assert @game.is_over
     assert_equal 0, @game.total_score
   end
 
@@ -42,6 +46,7 @@ class GameTest < ActiveSupport::TestCase
     [2, 3, 5, 5, 6, 2, 10, 7, 2, 1, 8, 2, 6, 3, 7, 10, 8, 2, 3].each do |s|
       @game.update_score(s)
     end
+    assert @game.is_over
     assert_equal 127, @game.total_score
   end
 

@@ -16,12 +16,12 @@ ActiveRecord::Schema.define(version: 20161017205041) do
     t.datetime "created_at",          null: false
     t.datetime "updated_at",          null: false
     t.integer  "game_id"
-    t.integer  "order"
+    t.integer  "number"
     t.integer  "score"
     t.boolean  "is_over"
     t.boolean  "strike"
     t.boolean  "spare"
-    t.boolean  "extra_score_applied"
+    t.integer  "extra_turns_applied"
   end
 
   create_table "games", force: :cascade do |t|
