@@ -1,6 +1,7 @@
 class Game < ApplicationRecord
   has_many :frames
 
+  # XXX move Frame related code to Frame class
   def update_score(score)
     check_score(score)
     raise ArgumentError, 'Game is over' if self.is_over
@@ -9,25 +10,31 @@ class Game < ApplicationRecord
     if last_frame.nil?
       create_frame
     elsif !last_frame.is_over || (last_frame.is_over && last_frame.number == 10)
-      #there is last_frame but it's over (logic for next,strike & spare)
       update_frame(last_frame)
     else
       create_frame(last_frame)
     end
 
     self.is_over = game_over?(last_frame)
-    self.save!
+    self.save
   end
 
   def total_score
     self.frames.pluck(:score).sum
   end
 
+  def game_over?(last_frame)
+    last_frame.try(:is_over) && last_frame.number == 10 && !self.frames.
+      where(:spare => true).any?{ |f| f.extra_turns_applied != 1 } &&
+      !self.frames.where(:strike => true).any?{ |f| f.extra_turns_applied != 2 }
+  end
+
   private
 
   def check_score(score)
-    raise ArgumentError, 'Score is not an integer' if !score.is_a?(Integer)
-    raise ArgumentError, 'Number of knocked down pins more than 10' if score > 10
+    if !score.is_a?(Integer) || score > 10 || score < 0
+      raise ArgumentError, 'Invalid score'
+    end
   end
 
   def handle_spare(last_frame)
@@ -36,11 +43,14 @@ class Game < ApplicationRecord
   end
 
   def handle_strike(last_frame)
+    # extra_turns_applied field is used to track the state
+    # of frame where score should be adjusted by the next
+    # turns. It should be 1 in case of spare, 2 - in case of strike
     if last_frame.strike && last_frame.extra_turns_applied != 2
       last_frame.score += @score
       already_applied = last_frame.extra_turns_applied.to_i
       last_frame.extra_turns_applied = already_applied + 1
-      last_frame.save!
+      last_frame.save
     end
     incomplete_strike_frame = self.frames.where(:strike => true,
       :extra_turns_applied => 1).first
@@ -49,6 +59,8 @@ class Game < ApplicationRecord
     end
   end
 
+  # This is a Factory method to create a frame and adjust scores
+  # of the previous incomplete in terms of scoring frames
   def create_frame(last_frame=nil)
     number = 1
     if last_frame
@@ -61,16 +73,19 @@ class Game < ApplicationRecord
       f.is_over = true
       f.strike = true
     end
-    f.save!
+    f.save
   end
 
   def apply_extra_score(frame)
     frame.score += @score
     already_applied = frame.extra_turns_applied.to_i
     frame.extra_turns_applied = already_applied + 1
-    frame.save!
+    frame.save
   end
 
+  # Updates the frame in case of second turn inside one frame
+  # or in case of additional throws after the spare or strike in the
+  # last frame
   def update_frame(last_frame)
     score_before_handle_strike = last_frame.score
     handle_strike(last_frame)
@@ -87,12 +102,6 @@ class Game < ApplicationRecord
       last_frame.spare = (last_frame.score == 10 && !last_frame.strike)
     end
     last_frame.is_over = true
-    last_frame.save!
-  end
-
-  def game_over?(last_frame)
-    last_frame.try(:is_over) && last_frame.number == 10 && !self.frames.
-      where(:spare => true).any?{ |f| f.extra_turns_applied != 1 } &&
-      !self.frames.where(:strike => true).any?{ |f| f.extra_turns_applied != 2 }
+    last_frame.save
   end
 end

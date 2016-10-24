@@ -18,7 +18,7 @@ class GamesControllerTest < ActionController::TestCase
     old_score = game.total_score
     assert_equal game.total_score, old_score
 
-    get :score, params: { id: 1, submit_score: 5 }
+    post :score, params: { id: 1, submit_score: 5 }
     assert_response :success
 
     jdata = JSON.parse response.body
